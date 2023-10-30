@@ -1,0 +1,16 @@
+{
+  "dependencies": {
+    "async-mqtt": "^2.6.3",
+    "express": "^4.18.2",
+    "xml2js": "^0.6.2"
+  },
+  "name": "syrlex2mqtt",
+  "version": "1.0.0",
+  "description": "Simulates the SyrConnect cloud and makes the device available via mqtt",
+  "main": "syrlex2mqtt.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": ""
+}
