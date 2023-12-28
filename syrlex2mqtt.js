@@ -32,7 +32,7 @@ const xmlStart = '<?xml version="1.0" encoding="utf-8"?><sc version="1.0"><d>';
 const xmlEnd = '</d></sc>';
 const basicC = ["getSRN", "getVER", "getFIR", "getTYP", "getCNA", "getIPA"];
 const allC = [ "getSRN", "getVER", "getFIR", "getTYP", "getCNA", "getIPA",
-               "getSV1", "getRPD", "getFLO", "getLAR", "getTOR", "getRG1", "getCS1", "getRES", "getSS1", "getSV1", "getSTA", "getCOF"];
+               "getSV1", "getRPD", "getFLO", "getLAR", "getTOR", "getRG1", "getCS1", "getRES", "getSS1", "getSV1", "getSTA", "getCOF", "getRTH", "getRTM"];
 
 var httpServer;
 var httpsServer;
@@ -142,6 +142,25 @@ async function sendMQTTNumberDiscoveryMessage(mqttclient, mqttDevice, numbername
 }
 
 
+async function sendMQTTTextDiscoveryMessage(mqttclient, mqttDevice, textname, humanreadable_name, device_class, pattern, icon = 'mdi:water') {
+  var topic = 'homeassistant/text/syr_watersoftening/' + mqttDevice.identifier() + '_' + textname + '/config';
+  var payload = {
+        name: humanreadable_name,
+        device_class: device_class,
+        icon: icon,
+        state_topic: 'syr/' + mqttDevice.identifier() + '/state',
+        command_topic: 'syr/' + mqttDevice.identifier() + '/set_' + textname,
+        availability: generateAvailability(mqttDevice.identifier()),
+        value_template: '{{ value_json.'+ textname +'}}',
+        unique_id: mqttDevice.identifier() + "_" + textname,
+        mode: 'text',
+        pattern: pattern,
+        device: mqttDevice
+      }
+  await mqttclient.publish(topic, JSON.stringify(payload))
+}
+
+
 async function sendMQTTButtonDiscoveryMessage(mqttclient, mqttDevice, buttonname, humanreadable_name) {
   var topic = 'homeassistant/button/syr_watersoftening/' + mqttDevice.identifier() + '_' + buttonname + '/config';
   var payload = {
@@ -193,6 +212,7 @@ async function getDevice(model, snr, sw_version, url) {
     
     await sendMQTTNumberDiscoveryMessage(mqttclient, mqttDevice, 'salt_in_stock', 'Salt in Stock', 'weight', 'kg', 0, 25, 'mdi:cup');
     await sendMQTTNumberDiscoveryMessage(mqttclient, mqttDevice, 'regeneration_interval', 'Regeneration Interval', null, 'days', 1, 10, 'mdi:calendar-clock');
+    await sendMQTTTextDiscoveryMessage(mqttclient, mqttDevice, 'regeneration_time', 'Regeneration Time (Hour:Minutes)', null, "\\d?\\d:\\d\\d", 'mdi:clock');
   
     await sendMQTTAvailabilityMessage(mqttclient, mqttDevice);
   }
@@ -261,6 +281,8 @@ function allCommands(req, res) {
 
     var device = await getDevice(model, snr, sw_version, url);
 
+    //logVerbose("device:\n" + JSON.stringify(device));
+
     var allFound = true;
     for(let i = 0; i < allC.length; i++) {
       if(!valueMap.has(allC[i])) {
@@ -281,6 +303,7 @@ function allCommands(req, res) {
         status_message: valueMap.get('getSTA'),
         salt_in_stock: valueMap.get('getSV1'),
         regeneration_interval: valueMap.get('getRPD'),
+        regeneration_time: String(valueMap.get('getRTH')).padStart(2, "0") + ":" + String(valueMap.get('getRTM')).padStart(2, "0"),
         regeneration_running: valueMap.get('getRG1') == "1" ? 'ON' : 'OFF'
       }
       logVerbose('Publishing state message:\n' + JSON.stringify(payload));
@@ -386,6 +409,13 @@ const messageReceived = async (topic, message) => {
   } else if(entity_name == 'regeneration_interval') {
     var regeneration_interval = message.toString();
     device.setters["setRPD"] = regeneration_interval;
+  } else if(entity_name == 'regeneration_time') {
+    var regeneration_time = message.toString();
+    var matches = regeneration_time.match(/(\d?\d):(\d\d)/);
+    if((matches != null) && (matches.length == 3)) {
+      device.setters["setRTH"] = matches[1].toString();
+      device.setters["setRTM"] = matches[2].toString();
+    }
   } else if(entity_name == 'start_regeneration') {
     if(message == "PRESS") {
        device.setters["setSIR"] = "0";
