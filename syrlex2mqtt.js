@@ -64,6 +64,16 @@ function formatTimestamp(timestamp) {
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${offsetStr}`;
 }
 
+function removeNullProperties(obj)
+{
+  var remainingProps = Object.keys(obj);
+  for(const prop of remainingProps) {
+    if(obj[prop] == null) {
+      delete obj[prop];
+    }
+  }
+}
+
 function generateAvailability(identifier) {
   var availability_topic = 'syr/' + identifier + '/availability';
   var availability = [
@@ -90,11 +100,12 @@ function generateMQTTDevice(model, snr, sw_version, url) {
   return mqttDevice;
 }
 
-async function sendMQTTSensorDiscoveryMessage(mqttclient, mqttDevice, sensorname, humanreadable_name, device_class, unit_of_measurement, icon = 'mdi:water') {
+async function sendMQTTSensorDiscoveryMessage(mqttclient, mqttDevice, sensorname, humanreadable_name, device_class, entity_category, unit_of_measurement, icon = 'mdi:water') {
   var topic = 'homeassistant/sensor/syr_watersoftening/' + mqttDevice.identifier() + '_' + sensorname + '/config';
   var payload = {
         name: humanreadable_name,
         device_class: device_class,
+        entity_category: entity_category,
         unit_of_measurement: unit_of_measurement,
         icon: icon,
         state_topic: 'syr/' + mqttDevice.identifier() + '/state',
@@ -102,30 +113,34 @@ async function sendMQTTSensorDiscoveryMessage(mqttclient, mqttDevice, sensorname
         value_template: '{{ value_json.'+ sensorname +'}}',
         unique_id: mqttDevice.identifier() + "_" + sensorname,
         device: mqttDevice
-      }
+      };
+  removeNullProperties(payload);
   await mqttclient.publish(topic, JSON.stringify(payload))
 }
 
-async function sendMQTTBinarySensorDiscoveryMessage(mqttclient, mqttDevice, sensorname, humanreadable_name, device_class) {
+async function sendMQTTBinarySensorDiscoveryMessage(mqttclient, mqttDevice, sensorname, humanreadable_name, device_class, entity_category) {
   var topic = 'homeassistant/binary_sensor/syr_watersoftening/' + mqttDevice.identifier() + '_' + sensorname + '/config';
   var payload = {
         name: humanreadable_name,
         device_class: device_class,
+        entity_category: entity_category,
         state_topic: 'syr/' + mqttDevice.identifier() + '/state',
         availability: generateAvailability(mqttDevice.identifier()),
         value_template: '{{ value_json.'+ sensorname +'}}',
         unique_id: mqttDevice.identifier() + "_" + sensorname,
         device: mqttDevice
-      }
+      };
+  removeNullProperties(payload);
   await mqttclient.publish(topic, JSON.stringify(payload))
 }
 
 
-async function sendMQTTNumberDiscoveryMessage(mqttclient, mqttDevice, numbername, humanreadable_name, device_class, unit_of_measurement, minimum, maximum, icon = 'mdi:water') {
+async function sendMQTTNumberDiscoveryMessage(mqttclient, mqttDevice, numbername, humanreadable_name, device_class, entity_category, unit_of_measurement, minimum, maximum, icon = 'mdi:water') {
   var topic = 'homeassistant/number/syr_watersoftening/' + mqttDevice.identifier() + '_' + numbername + '/config';
   var payload = {
         name: humanreadable_name,
         device_class: device_class,
+        entity_category: entity_category,
         unit_of_measurement: unit_of_measurement,
         icon: icon,
         state_topic: 'syr/' + mqttDevice.identifier() + '/state',
@@ -137,16 +152,18 @@ async function sendMQTTNumberDiscoveryMessage(mqttclient, mqttDevice, numbername
         max: maximum,
         mode: 'box',
         device: mqttDevice
-      }
+      };
+  removeNullProperties(payload);
   await mqttclient.publish(topic, JSON.stringify(payload))
 }
 
 
-async function sendMQTTTextDiscoveryMessage(mqttclient, mqttDevice, textname, humanreadable_name, device_class, pattern, icon = 'mdi:water') {
+async function sendMQTTTextDiscoveryMessage(mqttclient, mqttDevice, textname, humanreadable_name, device_class, entity_category, pattern, icon = 'mdi:water') {
   var topic = 'homeassistant/text/syr_watersoftening/' + mqttDevice.identifier() + '_' + textname + '/config';
   var payload = {
         name: humanreadable_name,
         device_class: device_class,
+        entity_category: entity_category,
         icon: icon,
         state_topic: 'syr/' + mqttDevice.identifier() + '/state',
         command_topic: 'syr/' + mqttDevice.identifier() + '/set_' + textname,
@@ -156,20 +173,23 @@ async function sendMQTTTextDiscoveryMessage(mqttclient, mqttDevice, textname, hu
         mode: 'text',
         pattern: pattern,
         device: mqttDevice
-      }
+      };
+  removeNullProperties(payload);
   await mqttclient.publish(topic, JSON.stringify(payload))
 }
 
 
-async function sendMQTTButtonDiscoveryMessage(mqttclient, mqttDevice, buttonname, humanreadable_name) {
+async function sendMQTTButtonDiscoveryMessage(mqttclient, mqttDevice, buttonname, humanreadable_name, entity_category) {
   var topic = 'homeassistant/button/syr_watersoftening/' + mqttDevice.identifier() + '_' + buttonname + '/config';
   var payload = {
         name: humanreadable_name,
+        entity_category: entity_category,
         command_topic: 'syr/' + mqttDevice.identifier() + '/set_' + buttonname,
         availability: generateAvailability(mqttDevice.identifier()),
         unique_id: mqttDevice.identifier() + "_" + buttonname,
         device: mqttDevice
-      }
+      };
+  removeNullProperties(payload);
   await mqttclient.publish(topic, JSON.stringify(payload))
 }
 
@@ -198,21 +218,21 @@ async function getDevice(model, snr, sw_version, url) {
     };
     devicesMap.set(identifier, device);
 
-    await sendMQTTSensorDiscoveryMessage(mqttclient, mqttDevice, 'current_water_flow', 'Current Water Flow', null, 'l/min', 'mdi:water');
-    await sendMQTTSensorDiscoveryMessage(mqttclient, mqttDevice, 'salt_remaining', 'Salt Remaining', null, 'weeks', 'mdi:cup');
-    await sendMQTTSensorDiscoveryMessage(mqttclient, mqttDevice, 'remaining_resin_capacity', 'Remaining Resin Capacity', null, '%', 'mdi:water-percent');
-    await sendMQTTSensorDiscoveryMessage(mqttclient, mqttDevice, 'remaining_water_capacity', 'Remaining Water Capacity', 'water', 'L', 'mdi:water');
-    await sendMQTTSensorDiscoveryMessage(mqttclient, mqttDevice, 'total_water_consumption', 'Total Water Consumption', 'water', 'L', 'mdi:water');
-    await sendMQTTSensorDiscoveryMessage(mqttclient, mqttDevice, 'number_of_regenerations', 'Number of Regenerations', null, null, 'mdi:counter');
-    await sendMQTTSensorDiscoveryMessage(mqttclient, mqttDevice, 'last_regeneration', 'Last Regeneration', 'timestamp', null, 'mdi:clock-time-four-outline');
-    await sendMQTTSensorDiscoveryMessage(mqttclient, mqttDevice, 'status_message', 'Status Message', null, null, 'mdi:message-text');
-    await sendMQTTBinarySensorDiscoveryMessage(mqttclient, mqttDevice, 'regeneration_running', 'Regeneration Running', 'running');
+    await sendMQTTSensorDiscoveryMessage(mqttclient, mqttDevice, 'current_water_flow', 'Current Water Flow', null, null, 'l/min', 'mdi:water');
+    await sendMQTTSensorDiscoveryMessage(mqttclient, mqttDevice, 'salt_remaining', 'Salt Remaining', null, null, 'weeks', 'mdi:cup');
+    await sendMQTTSensorDiscoveryMessage(mqttclient, mqttDevice, 'remaining_resin_capacity', 'Remaining Resin Capacity', null, 'diagnostic', '%', 'mdi:water-percent');
+    await sendMQTTSensorDiscoveryMessage(mqttclient, mqttDevice, 'remaining_water_capacity', 'Remaining Water Capacity', 'water', 'diagnostic', 'L', 'mdi:water');
+    await sendMQTTSensorDiscoveryMessage(mqttclient, mqttDevice, 'total_water_consumption', 'Total Water Consumption', 'water', null, 'L', 'mdi:water');
+    await sendMQTTSensorDiscoveryMessage(mqttclient, mqttDevice, 'number_of_regenerations', 'Number of Regenerations', null, 'diagnostic', null, 'mdi:counter');
+    await sendMQTTSensorDiscoveryMessage(mqttclient, mqttDevice, 'last_regeneration', 'Last Regeneration', 'timestamp', null, null, 'mdi:clock-time-four-outline');
+    await sendMQTTSensorDiscoveryMessage(mqttclient, mqttDevice, 'status_message', 'Status Message', null, null, null, 'mdi:message-text');
+    await sendMQTTBinarySensorDiscoveryMessage(mqttclient, mqttDevice, 'regeneration_running', 'Regeneration Running', 'running', null);
   
-    await sendMQTTButtonDiscoveryMessage(mqttclient, mqttDevice, 'start_regeneration', 'Start Regeneration');
+    await sendMQTTButtonDiscoveryMessage(mqttclient, mqttDevice, 'start_regeneration', 'Start Regeneration', null);
     
-    await sendMQTTNumberDiscoveryMessage(mqttclient, mqttDevice, 'salt_in_stock', 'Salt in Stock', 'weight', 'kg', 0, 25, 'mdi:cup');
-    await sendMQTTNumberDiscoveryMessage(mqttclient, mqttDevice, 'regeneration_interval', 'Regeneration Interval', null, 'days', 1, 10, 'mdi:calendar-clock');
-    await sendMQTTTextDiscoveryMessage(mqttclient, mqttDevice, 'regeneration_time', 'Regeneration Time (Hour:Minutes)', null, "\\d?\\d:\\d\\d", 'mdi:clock');
+    await sendMQTTNumberDiscoveryMessage(mqttclient, mqttDevice, 'salt_in_stock', 'Salt in Stock', 'weight', null, 'kg', 0, 25, 'mdi:cup');
+    await sendMQTTNumberDiscoveryMessage(mqttclient, mqttDevice, 'regeneration_interval', 'Regeneration Interval', null, 'config', 'days', 1, 10, 'mdi:calendar-clock');
+    await sendMQTTTextDiscoveryMessage(mqttclient, mqttDevice, 'regeneration_time', 'Regeneration Time (Hour:Minutes)', null, 'config', "\\d?\\d:\\d\\d", 'mdi:clock');
   
     await sendMQTTAvailabilityMessage(mqttclient, mqttDevice);
   }
