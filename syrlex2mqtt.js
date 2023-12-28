@@ -32,7 +32,7 @@ const xmlStart = '<?xml version="1.0" encoding="utf-8"?><sc version="1.0"><d>';
 const xmlEnd = '</d></sc>';
 const basicC = ["getSRN", "getVER", "getFIR", "getTYP", "getCNA", "getIPA"];
 const allC = [ "getSRN", "getVER", "getFIR", "getTYP", "getCNA", "getIPA",
-               "getSV1", "getRPD", "getFLO", "getLAR", "getTOR", "getRG1", "getCS1", "getRES", "getSS1", "getSV1", "getSTA", "getCOF", "getRTH", "getRTM"];
+               "getSV1", "getRPD", "getFLO", "getLAR", "getTOR", "getRG1", "getCS1", "getRES", "getSS1", "getSV1", "getSTA", "getCOF", "getRTH", "getRTM", "getRPW"];
 
 var httpServer;
 var httpsServer;
@@ -64,14 +64,101 @@ function formatTimestamp(timestamp) {
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${offsetStr}`;
 }
 
-function removeNullProperties(obj)
-{
+function removeNullProperties(obj) {
   var remainingProps = Object.keys(obj);
   for(const prop of remainingProps) {
     if(obj[prop] == null) {
       delete obj[prop];
     }
   }
+}
+
+function popcount(n) {
+  // see https://stackoverflow.com/questions/43122082/efficiently-count-the-number-of-bits-in-an-integer-in-javascript
+  n = n - ((n >> 1) & 0x55555555)
+  n = (n & 0x33333333) + ((n >> 2) & 0x33333333)
+  return ((n + (n >> 4) & 0xF0F0F0F) * 0x1010101) >> 24
+}
+
+function reverse7MaskBits(n) {
+  // reverse the lowest 7 bits (ignore the others)
+  var n7 = n & 0x7F;
+  var reverseString = n7.toString(2).padStart(7,'0').split('').reverse().join('');
+  return parseInt(reverseString, 2);
+}
+
+function fromRegenerationWeekDaysMask(num) {
+  if(num == 0) {
+    return "(None)";
+  }
+
+  var bFullname = (popcount(num) <= 2);
+
+  var res = "";
+  if(num & 0x01) {
+    res += ((res.length > 0) ? ", " : "") + (bFullname ? "Monday" : "Mon");
+  }
+  if(num & 0x02) {
+    res += ((res.length > 0) ? ", " : "") + (bFullname ? "Tuesday" : "Tue");
+  }
+  if(num & 0x04) {
+    res += ((res.length > 0) ? ", " : "") + (bFullname ? "Wednesday" : "Wed");
+  }
+  if(num & 0x08) {
+    res += ((res.length > 0) ? ", " : "") + (bFullname ? "Thursday" : "Thu");
+  }
+  if(num & 0x10) {
+    res += ((res.length > 0) ? ", " : "") + (bFullname ? "Friday" : "Fri");
+  }
+  if(num & 0x20) {
+    res += ((res.length > 0) ? ", " : "") + (bFullname ? "Saturday" : "Sat");
+  }
+  if(num & 0x40) {
+    res += ((res.length > 0) ? ", " : "") + (bFullname ? "Sunday" : "Sun");
+  }
+
+  var idx = res.lastIndexOf(", ");
+  if (idx>=0) {
+    res = res.substring(0,idx) + " & " + res.substring(idx+2);
+  }
+  return "Every " + res;
+}
+
+function toRegenerationWeekDaysMask(str) {
+	var res = 0;
+  var matches = str.match(/(Mon|Tue|Wed|Thu|Fri|Sat|Sun)/g);
+  if(matches == null) {
+  	return res;
+  }
+  for(var m of matches) {
+    switch (m) {
+      case 'Mon': res |= 0x01; break;
+      case 'Tue': res |= 0x02; break;
+      case 'Wed': res |= 0x04; break;
+      case 'Thu': res |= 0x08; break;
+      case 'Fri': res |= 0x10; break;
+      case 'Sat': res |= 0x20; break;
+      case 'Sun': res |= 0x40; break;
+    }
+  }
+  return res;
+}
+
+function calculateRegenerationWeekDaysOptions() {
+  // spent some extra effort here to get a "sensible" order
+  // "(None)", all entries with only one week day, all entries with two week days, all entries with three week days, ... => popcount
+  // Inside each "bucket" Monday comes before Tuesday, before Wednesday, ... => count downwards, reverse7MaskBits
+
+  var res = ["(None)"];
+  for(var numOnes = 1; numOnes <= 7; numOnes++)
+  {
+    for(var i = 0x7F; i > 0; i--) {
+      if(popcount(i) == numOnes) {
+        res.push(fromRegenerationWeekDaysMask(reverse7MaskBits(i)));
+      }
+    }
+  }
+  return res;
 }
 
 function generateAvailability(identifier) {
@@ -157,6 +244,25 @@ async function sendMQTTNumberDiscoveryMessage(mqttclient, mqttDevice, numbername
   await mqttclient.publish(topic, JSON.stringify(payload))
 }
 
+async function sendMQTTSelectDiscoveryMessage(mqttclient, mqttDevice, selectname, humanreadable_name, device_class, entity_category, options, icon = 'mdi:water') {
+  var topic = 'homeassistant/select/syr_watersoftening/' + mqttDevice.identifier() + '_' + selectname + '/config';
+  var payload = {
+        name: humanreadable_name,
+        device_class: device_class,
+        entity_category: entity_category,
+        options: options,
+        icon: icon,
+        state_topic: 'syr/' + mqttDevice.identifier() + '/state',
+        command_topic: 'syr/' + mqttDevice.identifier() + '/set_' + selectname,
+        availability: generateAvailability(mqttDevice.identifier()),
+        value_template: '{{ value_json.'+ selectname +'}}',
+        unique_id: mqttDevice.identifier() + "_" + selectname,
+        device: mqttDevice
+      };
+  removeNullProperties(payload);
+  await mqttclient.publish(topic, JSON.stringify(payload))
+}
+
 
 async function sendMQTTTextDiscoveryMessage(mqttclient, mqttDevice, textname, humanreadable_name, device_class, entity_category, pattern, icon = 'mdi:water') {
   var topic = 'homeassistant/text/syr_watersoftening/' + mqttDevice.identifier() + '_' + textname + '/config';
@@ -231,6 +337,7 @@ async function getDevice(model, snr, sw_version, url) {
     await sendMQTTButtonDiscoveryMessage(mqttclient, mqttDevice, 'start_regeneration', 'Start Regeneration', null);
     
     await sendMQTTNumberDiscoveryMessage(mqttclient, mqttDevice, 'salt_in_stock', 'Salt in Stock', 'weight', null, 'kg', 0, 25, 'mdi:cup');
+    await sendMQTTSelectDiscoveryMessage(mqttclient, mqttDevice, 'regeneration_week_days', 'Regeneration Week Days', null, 'config', calculateRegenerationWeekDaysOptions(), 'mdi:calendar-clock');
     await sendMQTTNumberDiscoveryMessage(mqttclient, mqttDevice, 'regeneration_interval', 'Regeneration Interval', null, 'config', 'days', 1, 10, 'mdi:calendar-clock');
     await sendMQTTTextDiscoveryMessage(mqttclient, mqttDevice, 'regeneration_time', 'Regeneration Time (Hour:Minutes)', null, 'config', "\\d?\\d:\\d\\d", 'mdi:clock');
   
@@ -323,6 +430,7 @@ function allCommands(req, res) {
         status_message: valueMap.get('getSTA'),
         salt_in_stock: valueMap.get('getSV1'),
         regeneration_interval: valueMap.get('getRPD'),
+        regeneration_week_days: fromRegenerationWeekDaysMask(valueMap.get('getRPW')),
         regeneration_time: String(valueMap.get('getRTH')).padStart(2, "0") + ":" + String(valueMap.get('getRTM')).padStart(2, "0"),
         regeneration_running: valueMap.get('getRG1') == "1" ? 'ON' : 'OFF'
       }
@@ -429,6 +537,9 @@ const messageReceived = async (topic, message) => {
   } else if(entity_name == 'regeneration_interval') {
     var regeneration_interval = message.toString();
     device.setters["setRPD"] = regeneration_interval;
+  } else if(entity_name == 'regeneration_week_days') {
+    var regeneration_week_days = message.toString();
+    device.setters["setRPW"] = toRegenerationWeekDaysMask(regeneration_week_days);
   } else if(entity_name == 'regeneration_time') {
     var regeneration_time = message.toString();
     var matches = regeneration_time.match(/(\d?\d):(\d\d)/);
