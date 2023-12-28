@@ -13,7 +13,9 @@ const http = require('http')
 const brokerUrl = process.env.MQTT_SERVER;
 const username = process.env.MQTT_USER;
 const password = process.env.MQTT_PASSWORD;
+
 const verboseLogging = (process.env.VERBOSE_LOGGING == "1");
+const additionalProperties = (process.env.ADDITIONAL_PROPERTIES == undefined || process.env.ADDITIONAL_PROPERTIES == "") ? [] : process.env.ADDITIONAL_PROPERTIES.split(",").map(s => s.trim());
 
 // syr connect configuration
 const syrHttpPort = 80;
@@ -32,7 +34,8 @@ const xmlStart = '<?xml version="1.0" encoding="utf-8"?><sc version="1.0"><d>';
 const xmlEnd = '</d></sc>';
 const basicC = ["getSRN", "getVER", "getFIR", "getTYP", "getCNA", "getIPA"];
 const allC = [ "getSRN", "getVER", "getFIR", "getTYP", "getCNA", "getIPA",
-               "getSV1", "getRPD", "getFLO", "getLAR", "getTOR", "getRG1", "getCS1", "getRES", "getSS1", "getSV1", "getSTA", "getCOF", "getRTH", "getRTM", "getRPW"];
+               "getSV1", "getRPD", "getFLO", "getLAR", "getTOR", "getRG1", "getCS1", "getRES", "getSS1", "getSV1", "getSTA", "getCOF", "getRTH", "getRTM", "getRPW",
+               ...additionalProperties.map(p => "get" + p)];
 
 var httpServer;
 var httpsServer;
@@ -340,6 +343,10 @@ async function getDevice(model, snr, sw_version, url) {
     await sendMQTTSelectDiscoveryMessage(mqttclient, mqttDevice, 'regeneration_week_days', 'Regeneration Week Days', null, 'config', calculateRegenerationWeekDaysOptions(), 'mdi:calendar-clock');
     await sendMQTTNumberDiscoveryMessage(mqttclient, mqttDevice, 'regeneration_interval', 'Regeneration Interval', null, 'config', 'days', 1, 10, 'mdi:calendar-clock');
     await sendMQTTTextDiscoveryMessage(mqttclient, mqttDevice, 'regeneration_time', 'Regeneration Time (Hour:Minutes)', null, 'config', "\\d?\\d:\\d\\d", 'mdi:clock');
+
+    for(var p of additionalProperties) {
+      await sendMQTTSensorDiscoveryMessage(mqttclient, mqttDevice, p, p, null, null, null, 'mdi:water');
+    }
   
     await sendMQTTAvailabilityMessage(mqttclient, mqttDevice);
   }
@@ -434,6 +441,10 @@ function allCommands(req, res) {
         regeneration_time: String(valueMap.get('getRTH')).padStart(2, "0") + ":" + String(valueMap.get('getRTM')).padStart(2, "0"),
         regeneration_running: valueMap.get('getRG1') == "1" ? 'ON' : 'OFF'
       }
+      for(var p of additionalProperties) {
+        payload[p] = valueMap.get('get' + p);
+      }
+
       logVerbose('Publishing state message:\n' + JSON.stringify(payload));
       sendMQTTStateMessage(mqttclient, model, snr, payload);
     }
