@@ -471,7 +471,7 @@ async function initWebServer() {
 	app.use(express.urlencoded({extended: true}));
 
 	app.use((req, res, next) => {
-		logVerbose("Request for " + req.hostname + req.url + "\n" + req.body.xml);
+		logVerbose("Request for " + req.hostname + req.url + ((req.body.xml == undefined) ? "" : ("\n" + req.body.xml)));
 		next();
 	});
 	
