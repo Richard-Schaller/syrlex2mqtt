@@ -19,7 +19,7 @@ const brokerUrl = process.env.MQTT_SERVER;
 const username = process.env.MQTT_USER;
 const password = process.env.MQTT_PASSWORD;
 
-const verboseLogging = (process.env.VERBOSE_LOGGING == "1");
+const verboseLogging = process.env.VERBOSE_LOGGING && ((process.env.VERBOSE_LOGGING == "1") || (process.env.VERBOSE_LOGGING.toUpperCase() == "TRUE"));
 const additionalProperties = (process.env.ADDITIONAL_PROPERTIES == undefined || process.env.ADDITIONAL_PROPERTIES == "") ? [] : process.env.ADDITIONAL_PROPERTIES.split(",").map(s => s.trim());
 
 // syr connect configuration
