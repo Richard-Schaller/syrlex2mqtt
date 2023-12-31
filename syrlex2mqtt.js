@@ -9,6 +9,11 @@ const xml = require('xml2js');
 const https = require('https')
 const http = require('http')
 
+if(!process.env.MQTT_SERVER || !process.env.MQTT_USER || !process.env.MQTT_PASSWORD) {
+  logInfo("Please set variables MQTT_SERVER, MQTT_USER and MQTT_PASSWORD");
+  process.exit(1);
+}
+
 // mqtt configuration
 const brokerUrl = process.env.MQTT_SERVER;
 const username = process.env.MQTT_USER;
@@ -18,8 +23,8 @@ const verboseLogging = (process.env.VERBOSE_LOGGING == "1");
 const additionalProperties = (process.env.ADDITIONAL_PROPERTIES == undefined || process.env.ADDITIONAL_PROPERTIES == "") ? [] : process.env.ADDITIONAL_PROPERTIES.split(",").map(s => s.trim());
 
 // syr connect configuration
-const syrHttpPort = 80;
-const syrHttpsPort = 443;
+const syrHttpPort = (process.env.HTTP_PORT == undefined || process.env.HTTP_PORT == "") ? 80 : process.env.HTTP_PORT
+const syrHttpsPort = (process.env.HTTPS_PORT == undefined || process.env.HTTPS_PORT == "") ? 443 : process.env.HTTPS_PORT;
 
 // https certificates
 var key = fs.readFileSync(__dirname + '/server.key');
