@@ -172,7 +172,7 @@ function calculateRegenerationWeekDaysOptions() {
 function generateAvailability(identifier) {
   var availability_topic = 'syr/' + identifier + '/availability';
   var availability = [
-    {topic: 'syr/bridge/state'},
+    {topic: 'syr/syrlex2mqtt/state'},
     {topic: availability_topic}
   ];
   return availability;
@@ -312,6 +312,7 @@ async function sendMQTTAvailabilityMessage(mqttclient, mqttDevice) {
   var availability_topic = 'syr/' + mqttDevice.identifier() + '/availability';
 
   await mqttclient.publish(availability_topic, 'online', {retain: true})
+  await mqttclient.publish('syr/syrlex2mqtt/state', 'online', {retain: true})
 }
 
 async function sendMQTTStateMessage(mqttclient, model, snr, payload) {
@@ -504,7 +505,7 @@ const mqttclient = mqtt.connect(brokerUrl,
                                   username: username,
                                   password: password,
                                   will: {
-                                    topic: 'syr/bridge/state',
+                                    topic: 'syr/syrlex2mqtt/state',
                                     payload: 'offline',
                                     retain: true
                                   }
