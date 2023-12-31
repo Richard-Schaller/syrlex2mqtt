@@ -210,7 +210,7 @@ async function sendMQTTSensorDiscoveryMessage(mqttclient, mqttDevice, sensorname
         device: mqttDevice
       };
   removeNullProperties(payload);
-  await mqttclient.publish(topic, JSON.stringify(payload))
+  await mqttclient.publish(topic, JSON.stringify(payload), {retain: true})
 }
 
 async function sendMQTTBinarySensorDiscoveryMessage(mqttclient, mqttDevice, sensorname, humanreadable_name, device_class, entity_category) {
@@ -226,7 +226,7 @@ async function sendMQTTBinarySensorDiscoveryMessage(mqttclient, mqttDevice, sens
         device: mqttDevice
       };
   removeNullProperties(payload);
-  await mqttclient.publish(topic, JSON.stringify(payload))
+  await mqttclient.publish(topic, JSON.stringify(payload), {retain: true})
 }
 
 
@@ -249,7 +249,7 @@ async function sendMQTTNumberDiscoveryMessage(mqttclient, mqttDevice, numbername
         device: mqttDevice
       };
   removeNullProperties(payload);
-  await mqttclient.publish(topic, JSON.stringify(payload))
+  await mqttclient.publish(topic, JSON.stringify(payload), {retain: true})
 }
 
 async function sendMQTTSelectDiscoveryMessage(mqttclient, mqttDevice, selectname, humanreadable_name, device_class, entity_category, options, icon = 'mdi:water') {
@@ -268,7 +268,7 @@ async function sendMQTTSelectDiscoveryMessage(mqttclient, mqttDevice, selectname
         device: mqttDevice
       };
   removeNullProperties(payload);
-  await mqttclient.publish(topic, JSON.stringify(payload))
+  await mqttclient.publish(topic, JSON.stringify(payload), {retain: true})
 }
 
 
@@ -289,7 +289,7 @@ async function sendMQTTTextDiscoveryMessage(mqttclient, mqttDevice, textname, hu
         device: mqttDevice
       };
   removeNullProperties(payload);
-  await mqttclient.publish(topic, JSON.stringify(payload))
+  await mqttclient.publish(topic, JSON.stringify(payload), {retain: true})
 }
 
 
@@ -304,7 +304,7 @@ async function sendMQTTButtonDiscoveryMessage(mqttclient, mqttDevice, buttonname
         device: mqttDevice
       };
   removeNullProperties(payload);
-  await mqttclient.publish(topic, JSON.stringify(payload))
+  await mqttclient.publish(topic, JSON.stringify(payload), {retain: true})
 }
 
 
