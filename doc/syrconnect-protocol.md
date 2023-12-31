@@ -376,7 +376,7 @@ These settings can be set by the user.
 | getLWF          | "11056"                                                                                           | L      | Water consumption last week
 | getCMF          | "19751"                                                                                           | L      | Water consumption this month (continuously updated)
 | getLMF          | "37998"                                                                                           | L      | Water consumption last month
-| getCOF          | "583939"                                                                                          | L      | Cumulated water consumption in the past (continuously updated)<br>In theory this should reflect the numbers on your water metering device but the precision seems to low.
+| getCOF          | "583939"                                                                                          | L      | Cumulated water consumption in the past (continuously updated)<br>In theory this should reflect the numbers on your water metering device but the precision seems to be low.
 
 ### Unknown statistics
 
