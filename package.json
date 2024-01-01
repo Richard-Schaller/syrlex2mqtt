@@ -6,7 +6,7 @@
   },
   "name": "syrlex2mqtt",
   "version": "1.0.0",
-  "description": "Simulates the SyrConnect cloud and makes the device available via mqtt",
+  "description": "syrlex2mqtt simulates the SyrConnect cloud and makes the SYR water softening units of the LEX Plus series available via MQTT",
   "main": "syrlex2mqtt.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
