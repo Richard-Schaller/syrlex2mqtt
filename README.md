@@ -34,7 +34,7 @@ Currently the following devices are known to work:
   - firmware SLPS 1.7 (uses HTTP)
   - firmware SLPS 1.9 (uses HTTPS but without validating the certificate)
 
-If you have a different device or one of the mentioned devices with a different firmware, please test and report back. Newer firmware versions are known to more thorougly check HTTPS certificates. But, it is possible to [downgrade the firmware](#Firmwaredowngrade).
+If you have a different device or one of the mentioned devices with a different firmware, please test and report back. Newer firmware versions are known to more thorougly check HTTPS certificates. But, it is possible to [downgrade the firmware](#firmware-downgrade).
 
 ## Setup
 
