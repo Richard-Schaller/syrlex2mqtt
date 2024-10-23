@@ -38,8 +38,10 @@ var credentials = {
 const xmlStart = '<?xml version="1.0" encoding="utf-8"?><sc version="1.0"><d>';
 const xmlEnd = '</d></sc>';
 const basicC = ["getSRN", "getVER", "getFIR", "getTYP", "getCNA", "getIPA"];
+const leakageDetectionC = ["getAB", "getCEL"];
 const allC = [ "getSRN", "getVER", "getFIR", "getTYP", "getCNA", "getIPA",
                "getSV1", "getRPD", "getFLO", "getLAR", "getTOR", "getRG1", "getCS1", "getRES", "getSS1", "getSV1", "getSTA", "getCOF", "getRTH", "getRTM", "getRPW",
+               ...leakageDetectionC,  // adding the leakage detection commands here also for those devices that do not support them as it does no harm
                ...additionalProperties.map(p => "get" + p)];
 
 var httpServer;
@@ -272,6 +274,25 @@ async function sendMQTTSelectDiscoveryMessage(mqttclient, mqttDevice, selectname
 }
 
 
+async function sendMQTTValveDiscoveryMessage(mqttclient, mqttDevice, valvename, humanreadable_name, device_class, entity_category, icon = 'mdi:pipe-valve') {
+  var topic = 'homeassistant/valve/syr_watersoftening/' + mqttDevice.identifier() + '_' + valvename + '/config';
+  var payload = {
+        name: humanreadable_name,
+        device_class: device_class,
+        entity_category: entity_category,
+        icon: icon,
+        state_topic: 'syr/' + mqttDevice.identifier() + '/state',
+        command_topic: 'syr/' + mqttDevice.identifier() + '/set_' + valvename,
+        availability: generateAvailability(mqttDevice.identifier()),
+        value_template: '{{ value_json.'+ valvename +'}}',
+        unique_id: mqttDevice.identifier() + "_" + valvename,
+        device: mqttDevice
+      };
+  removeNullProperties(payload);
+  await mqttclient.publish(topic, JSON.stringify(payload), {retain: true})
+}
+
+
 async function sendMQTTTextDiscoveryMessage(mqttclient, mqttDevice, textname, humanreadable_name, device_class, entity_category, pattern, icon = 'mdi:water') {
   var topic = 'homeassistant/text/syr_watersoftening/' + mqttDevice.identifier() + '_' + textname + '/config';
   var payload = {
@@ -329,6 +350,7 @@ async function getDevice(model, snr, sw_version, url) {
     var mqttDevice = generateMQTTDevice(model, snr, sw_version, url);
     var device = {
       mqttDevice: mqttDevice,
+      hasLeakageProtection: (model.valueOf() == 'LEXplus10SL'),
       setters: { }
     };
     devicesMap.set(identifier, device);
@@ -349,6 +371,11 @@ async function getDevice(model, snr, sw_version, url) {
     await sendMQTTSelectDiscoveryMessage(mqttclient, mqttDevice, 'regeneration_week_days', 'Regeneration Week Days', null, 'config', calculateRegenerationWeekDaysOptions(), 'mdi:calendar-clock');
     await sendMQTTNumberDiscoveryMessage(mqttclient, mqttDevice, 'regeneration_interval', 'Regeneration Interval', null, 'config', 'days', 1, 10, 'mdi:calendar-clock');
     await sendMQTTTextDiscoveryMessage(mqttclient, mqttDevice, 'regeneration_time', 'Regeneration Time (Hour:Minutes)', null, 'config', "\\d?\\d:\\d\\d", 'mdi:clock');
+
+    if(device.hasLeakageProtection) {
+      await sendMQTTSensorDiscoveryMessage(mqttclient, mqttDevice, 'water_temperature', 'Water Temperature', 'temperature', null, '°C', 'mdi:thermometer-water');
+      await sendMQTTValveDiscoveryMessage(mqttclient, mqttDevice, "valve", "Valve", "water", null, 'mdi:pipe-valve');
+    }
 
     for(var p of additionalProperties) {
       await sendMQTTSensorDiscoveryMessage(mqttclient, mqttDevice, p, p, null, null, null, 'mdi:water');
@@ -445,10 +472,15 @@ function allCommands(req, res) {
         regeneration_interval: valueMap.get('getRPD'),
         regeneration_week_days: fromRegenerationWeekDaysMask(valueMap.get('getRPW')),
         regeneration_time: String(valueMap.get('getRTH')).padStart(2, "0") + ":" + String(valueMap.get('getRTM')).padStart(2, "0"),
-        regeneration_running: valueMap.get('getRG1') == "1" ? 'ON' : 'OFF'
+        regeneration_running: valueMap.get('getRG1') == "1" ? 'ON' : 'OFF',
       }
       for(var p of additionalProperties) {
         payload[p] = valueMap.get('get' + p);
+      }
+
+      if(device.hasLeakageProtection) {
+        payload['water_temperature'] = valueMap.get('getCEL') / 10.0;
+        payload['valve'] = valueMap.get('getAB') == 1 ? 'open' : 'closed';
       }
 
       logVerbose('Publishing state message:\n' + JSON.stringify(payload));
@@ -567,6 +599,12 @@ const messageReceived = async (topic, message) => {
   } else if(entity_name == 'start_regeneration') {
     if(message == "PRESS") {
        device.setters["setSIR"] = "0";
+    }
+  } else if(entity_name == 'valve') {
+    if(message == "OPEN") {
+       device.setters["setAB"] = "1";
+    } else if(message == "CLOSE") {
+       device.setters["setAB"] = "2";
     }
   }
   
