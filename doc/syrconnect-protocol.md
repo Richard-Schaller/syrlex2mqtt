@@ -2,7 +2,7 @@
 
 The SYR water softening units of the LEX Plus series, e.g. LEX Plus 10 Connect or LEX Plus 10 S Connect, are sharing their status with the SYR Connect cloud and receiving commands and settings changes from it. The SYR Connect cloud can be either accessed through the [SYR Connect web interface](https://syrconnect.de/) or the [SYR App](https://www.syr.de/de/SYR_App).
 
-The protocol between SYR water softening unit and SYR Connect cloud is partially reverse engineered through analyzing the exchanged messages. A LEX Plus 10 S Connect with firmware SLPS 1.7 was used for this analysis; later SLSP 1.9 was analysed.
+The protocol between SYR water softening unit and SYR Connect cloud is partially reverse engineered through analyzing the exchanged messages. A LEX Plus 10 S Connect with firmware SLPS 1.7 was used for this analysis; later SLSP 1.9 was analysed. Additionally, a LEX Plus 10 SL Connect was analyzed that contains an integrated leakage detection device, called Safeconnect.  
 
 ## Communication
 The communication happens for firmware version 1.7 via http to syrconnect.consoft.de and connect.saocal.pl. Both domains seem to use the same protocol, but only the former seems to be used for the SYR Connect cloud. Both domains are resolved via DNS, which means the communication can easily be redirected by using a DNS server (either via DHCP or via static configuration) that resolves these domains to the desired server IP. With firmware version 1.9 https is used instead of http, but no certificate checking seems to happen. The 
@@ -250,7 +250,7 @@ The third request and all following requests are also to GetAllCommands answerin
   </sc>
   ```
 ## Getters and Setters
-All known properties have 3-character names, e.g. XYZ. The SYR Connect cloud can either call "getXYZ" to receive the property value during the next request, or it can call "setXYZ" with an appropriate value. Currently, most analysis focussed on the getters. In is currently unknown if for each getter also a setter is working. If setters have been found to work, they are listed in below tables.
+All known properties have 2-character names, e.g. XY or 3-character names, e.g. XYZ. The SYR Connect cloud can either call "getXYZ" to receive the property value during the next request, or it can call "setXYZ" with an appropriate value. Currently, most analysis focussed on the getters. In is currently unknown if for each getter also a setter is working. If setters have been found to work, they are listed in below tables. 
 
 
 ### Basic Device data
@@ -261,7 +261,7 @@ This data is used to "register" the device in the SYR Connect cloud via GetBasic
 | getSRN          | "123456789"  |        | Serial number of the water softening unit. Used to identify the unit in the SYR Connect cloud 
 | getVER          | "1.7"        |        | Firmware version
 | getTYP          | "80"         |        | Type of device (always 80?)
-| getCNA          | "LEXplus10S" |        | Name of device. Known values: "LEXplus10", "LEXplus10S"
+| getCNA          | "LEXplus10S" |        | Name of device. Known values: "LEXplus10", "LEXplus10S", "LEXplus10SL"
 
 ### Further Device data
 Some further data about the device
@@ -378,6 +378,45 @@ These settings can be set by the user.
 | getLMF          | "37998"                                                                                           | L      | Water consumption last month
 | getCOF          | "583939"                                                                                          | L      | Cumulated water consumption in the past (continuously updated)<br>In theory this should reflect the numbers on your water metering device but the precision seems to be low.
 
+
+### Leakage protection
+These properties are only available on devices that contain leakage protection, e.g. LEX Plus 10 SL Connect.
+
+| Property        | Example      | Unit    | Description
+|-----------------|--------------|---------|-------------------------------------------------------
+| getAB / setAB   | "1"          |         | Valve shut-off: 1 = open, 2 = closed 
+| getVLV          | "20"         |         | Valve status: 10 = closed, 11 = closing, 20 = open, 21 = opening
+| getLE / setLE   | "4"          |         | Leakage volume when present: 1 = ?L, 2 = 100L, 3=150L, 3 = 200L 
+| getT2 / setT2   | "1"          |         | Leakage time (when present?): 1 = ?L, 2 = 1h, 3 = 1.5h, 4 = 2h
+| getTMP / setTMP | "0"          | seconds | Deactivate leakage protection for n seconds
+| getUL / setUL   | "0"          |         | User profile Leakage protection mode: 0 = present, 1 = absent
+| getCEL          | "203"        | 1/10 °C | Water temperature, e.g. 203 = 20.3°C
+| getNPS          | "22"         |         | Microleakage count
+
+### Unknown leakage protection
+These properties are only available on devices that contain leakage protection, e.g. LEX Plus 10 SL Connect.
+
+| Property        | Example      | Unit   | Description
+|-----------------|--------------|--------|-------------------------------------------------------
+| getDMA          | "1"          |        | *unknown*
+| getAVO          | "0mL"        |        | *unknown*
+| getBSA          | "0"          |        | *unknown*
+| getDBD          | "10"         |        | *unknown*
+| getDBT          | "15"         |        | *unknown*
+| getDST          | "180"        |        | *unknown*
+| getDCM          | "3"          |        | *unknown*
+| getDOM          | "60"         |        | *unknown*
+| getDPL          | "10"         |        | *unknown*
+| getDTC          | "3"          |        | *unknown*
+| getDRP          | "1"          |        | *unknown*
+| getALA          | "0"          |        | *unknown*
+| getTN           | "20"         |        | *unknown*
+| getSMR          | "1"          |        | *unknown*
+| getSRE          | "0"          |        | *unknown*
+| getVAC          | "0"          |        | *unknown*
+| getVAT          | "3"          |        | *unknown*
+
+
 ### Unknown statistics
 
 | Property        | Example      | Unit   | Description
@@ -423,4 +462,6 @@ These settings can be set by the user.
 - Githup repository of a project that simulates the SYR Connect cloud for usage in iobroker (German):  
   https://github.com/eifel-tech/ioBroker.syrconnect
 - Analysis of the network traffic of a SYR LexPlus 10 with the SYR Connect cloud:  
-  https://www.msxfaq.de/sonst/iot/syr_lexplus_10.htm
+  https://www.msxfaq.de/sonst/iot/syr_lexplus_10.htm (German)
+- Analysis of the network traffic of a Syr Safe-T Connect with the SYR Connect cloud:  
+  https://www.msxfaq.de/sonst/iot/syr_safe-t_connect.htm (German)
